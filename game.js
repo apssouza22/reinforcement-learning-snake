@@ -6,12 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 const CELL_WIDTH = 10;
-const DIRECTIONS = {
-    LEFT: 'left',
-    RIGHT: 'right',
-    UP: 'up',
-    DOWN: 'down'
-};
 
 let keys = [];
 let canvas = document.getElementById('canvas');
@@ -22,7 +16,37 @@ let direction;
 let food;
 let score;
 let snake;
+let gameOver = false;
+let reward = 0;
+let agent = new Agent();
+let stats = {
+    totalScore: 0,
+    record: 0
+}
 
+let game = {
+    score: score,
+    snake: snake,
+    food: food,
+    direction: DIRECTIONS.RIGHT,
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    is_collision: function (point) {
+        return checkCollision(point.x, point.y, canvasWidth, CELL_WIDTH, snake, canvasHeight);
+    },
+    playStep: function () {
+        paint();
+        return {
+            done: gameOver,
+            score: score,
+            reward: reward
+        }
+    },
+    init: function (){
+        initializeGame();
+    },
+
+}
 
 initializeGame();
 
@@ -52,9 +76,16 @@ function initializeGame() {
     createSnake();
     createFood();
     score = 0;
+    gameOver = false;
+    game.direction = direction;
+    game.score = score;
+    game.snake = snake;
+    game.food = food;
 
-    if (typeof game_loop != "undefined") clearInterval(game_loop);
-    game_loop = setInterval(paint, 60);
+    if (typeof setIntervalRef != "undefined") clearInterval(setIntervalRef);
+    setIntervalRef = setInterval(()=>{
+        stepFrame(agent, game, stats);
+    }, 60);
 }
 
 function createSnake() {
@@ -97,8 +128,10 @@ function updateSnakePosition() {
     else if (direction == DIRECTIONS.UP) newY--;
     else if (direction == DIRECTIONS.DOWN) newY++;
 
-    if (isOutsideCanvas(newX, canvasWidth, CELL_WIDTH, newY, canvasHeight) || checkCollision(newX, newY, snake)) {
-        initializeGame();
+    if (checkCollision(newX, newY, canvasWidth, CELL_WIDTH,snake, canvasHeight) ) {
+        reward = -10
+        gameOver = true;
+        // initializeGame();
         return;
     }
 
@@ -112,6 +145,7 @@ function checkFoodCollision() {
     if (snake[0].x === food.x && snake[0].y === food.y) {
         let tail = { x: snake[0].x, y: snake[0].y };
         score++;
+        reward = 10
         createFood();
         snake.unshift(tail);
     }
@@ -139,11 +173,16 @@ function paintCell(x, y, color) {
     context.strokeRect(x * CELL_WIDTH, y * CELL_WIDTH, CELL_WIDTH, CELL_WIDTH);
 }
 
-function checkCollision(x, y, array) {
+function checkItselfCollision(x, y, array) {
     for (let i = 0; i < array.length; i++) {
         if (array[i].x === x && array[i].y === y) return true;
     }
     return false;
+}
+
+function checkCollision(newX, newY, canvasWidth, CELL_WIDTH,snake, canvasHeight) {
+    return isOutsideCanvas(newX, canvasWidth, CELL_WIDTH, newY, canvasHeight)
+        || checkItselfCollision(newX, newY, snake)
 }
 
 function changeDirection(e) {
@@ -152,4 +191,12 @@ function changeDirection(e) {
     else if (key == "38" && direction != DIRECTIONS.DOWN) direction = DIRECTIONS.UP;
     else if (key == "39" && direction != DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT;
     else if (key == "40" && direction != DIRECTIONS.UP) direction = DIRECTIONS.DOWN;
+}
+
+function changeDirectionFromAction(action) {
+    // get direction from array action. [straight, right, left]
+    if (action[1] === 1 && direction != DIRECTIONS.RIGHT) direction = DIRECTIONS.LEFT;
+    else if (action[2] === 1 && direction != DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT;
+    else if (action[0] === 1 && direction != DIRECTIONS.DOWN) direction = DIRECTIONS.UP;
+    else if (action[3] === 1 && direction != DIRECTIONS.UP) direction = DIRECTIONS.DOWN;
 }
