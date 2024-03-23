@@ -23,34 +23,34 @@ class Agent {
          * @type {{x, y}}
          */
         let head = game.snake[0]
-        let point_l = {x: head.x - 20, y: head.y}
-        let point_r = {x: head.x + 20, y: head.y}
-        let point_u = {x: head.x, y: head.y - 20}
-        let point_d = {x: head.x, y: head.y + 20}
+        let point_l = {x: head.x - CELL_WIDTH, y: head.y}
+        let point_r = {x: head.x + CELL_WIDTH, y: head.y}
+        let point_u = {x: head.x, y: head.y - CELL_WIDTH}
+        let point_d = {x: head.x, y: head.y + CELL_WIDTH}
 
         let dir_l = game.direction == DIRECTIONS.LEFT
         let dir_r = game.direction == DIRECTIONS.RIGHT
         let dir_u = game.direction == DIRECTIONS.UP
         let dir_d = game.direction == DIRECTIONS.DOWN
 
+        let dangerStraight = (dir_r && game.is_collision(point_r)) ||
+        (dir_l && game.is_collision(point_l)) ||
+        (dir_u && game.is_collision(point_u)) ||
+        (dir_d && game.is_collision(point_d)) ? 1 : 0;
+
+        let dangerRight = (dir_u && game.is_collision(point_r)) ||
+        (dir_d && game.is_collision(point_l)) ||
+        (dir_l && game.is_collision(point_u)) ||
+        (dir_r && game.is_collision(point_d)) ? 1 : 0;
+
+        let dangerLeft = (dir_d && game.is_collision(point_r)) ||
+        (dir_u && game.is_collision(point_l)) ||
+        (dir_r && game.is_collision(point_u)) ||
+        (dir_l && game.is_collision(point_d)) ? 1 : 0;
         return [
-            // # Danger straight
-            (dir_r && game.is_collision(point_r)) ||
-            (dir_l && game.is_collision(point_l)) ||
-            (dir_u && game.is_collision(point_u)) ||
-            (dir_d && game.is_collision(point_d)) ? 1 : 0,
-
-            // # Danger right
-            (dir_u && game.is_collision(point_r)) ||
-            (dir_d && game.is_collision(point_l)) ||
-            (dir_l && game.is_collision(point_u)) ||
-            (dir_r && game.is_collision(point_d)) ? 1 : 0,
-
-            // # Danger left
-            (dir_d && game.is_collision(point_r)) ||
-            (dir_u && game.is_collision(point_l)) ||
-            (dir_r && game.is_collision(point_u)) ||
-            (dir_l && game.is_collision(point_d)) ? 1 : 0,
+            dangerStraight,
+            dangerRight,
+            dangerLeft,
 
             // # Move direction
             dir_l ? 1 : 0,
@@ -102,6 +102,9 @@ class Agent {
         let outputs = this.model.predict(state)
         console.log(outputs, argMax(outputs))
         steer[argMax(outputs)] = 1
+        if(JSON.stringify(steer) !== JSON.stringify([1, 0, 0])){
+            console.log(steer)
+        }
 
         return steer
     }
@@ -149,6 +152,7 @@ class QTrainer {
             //     }
             // }
             // target[argMax(sample.action)] = Q_new
+            this.model.feedForward(sample.state, true);
             this.model.calculateLoss(target)
             this.model.updateWeights()
             let loss = mse(pred, target)

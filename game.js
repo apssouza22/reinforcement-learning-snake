@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Event listeners
     window.addEventListener("keydown", handleKeyDown, false);
     window.addEventListener('keyup', handleKeyUp, false);
@@ -42,7 +42,7 @@ let game = {
             reward: reward
         }
     },
-    init: function (){
+    init: function () {
         initializeGame();
     },
 
@@ -50,8 +50,8 @@ let game = {
 
 initializeGame();
 
-function isOutsideCanvas(newX, canvasWidth, CELL_WIDTH, newY, canvasHeight) {
-    return newX == -1 || newX == canvasWidth / CELL_WIDTH || newY == -1 || newY == canvasHeight / CELL_WIDTH;
+function isOutsideCanvas(newX, newY, canvasWidth, CELL_WIDTH, canvasHeight) {
+    return newX < 0 || newX >= canvasWidth / CELL_WIDTH || newY < 0  || newY >= canvasHeight / CELL_WIDTH;
 }
 
 function handleKeyDown(e) {
@@ -64,10 +64,16 @@ function handleKeyUp(e) {
 }
 
 function preventDefaultForArrowKeysAndSpace(e) {
-    switch(e.keyCode){
-        case 37: case 39: case 38:  case 40: // Arrow keys
-        case 32: e.preventDefault(); break; // Space
-        default: break; // do not block other keys
+    switch (e.keyCode) {
+        case 37:
+        case 39:
+        case 38:
+        case 40: // Arrow keys
+        case 32:
+            e.preventDefault();
+            break; // Space
+        default:
+            break; // do not block other keys
     }
 }
 
@@ -83,7 +89,7 @@ function initializeGame() {
     game.food = food;
 
     if (typeof setIntervalRef != "undefined") clearInterval(setIntervalRef);
-    setIntervalRef = setInterval(()=>{
+    setIntervalRef = setInterval(() => {
         // paint();
         stepFrame(agent, game, stats);
     }, 60);
@@ -93,7 +99,7 @@ function createSnake() {
     let length = 5;
     snake = [];
     for (let i = length - 1; i >= 0; i--) {
-        snake.push({ x: i, y: 0 });
+        snake.push({x: i + 20, y: 20});
     }
 }
 
@@ -130,7 +136,7 @@ function updateSnakePosition() {
     else if (direction == DIRECTIONS.UP) newY--;
     else if (direction == DIRECTIONS.DOWN) newY++;
 
-    if (checkCollision(newX, newY, canvasWidth, CELL_WIDTH,snake, canvasHeight) ) {
+    if (checkCollision(newX, newY, canvasWidth, CELL_WIDTH, snake, canvasHeight)) {
         reward = -10
         gameOver = true;
         // initializeGame();
@@ -145,7 +151,7 @@ function updateSnakePosition() {
 
 function checkFoodCollision() {
     if (snake[0].x === food.x && snake[0].y === food.y) {
-        let tail = { x: snake[0].x, y: snake[0].y };
+        let tail = {x: snake[0].x, y: snake[0].y};
         score++;
         reward = 10
         createFood();
@@ -182,8 +188,8 @@ function checkItselfCollision(x, y, array) {
     return false;
 }
 
-function checkCollision(newX, newY, canvasWidth, CELL_WIDTH,snake, canvasHeight) {
-    return isOutsideCanvas(newX, canvasWidth, CELL_WIDTH, newY, canvasHeight)
+function checkCollision(newX, newY, canvasWidth, CELL_WIDTH, snake, canvasHeight) {
+    return isOutsideCanvas(newX, newY, canvasWidth, CELL_WIDTH, canvasHeight)
         || checkItselfCollision(newX, newY, snake)
 }
 
@@ -196,14 +202,6 @@ function changeDirection(e) {
 }
 
 function changeDirectionFromAction(action) {
-    // get direction from array action. [straight, right, left]
-    if (action[1] === 1 && direction != DIRECTIONS.RIGHT) direction = DIRECTIONS.LEFT;
-    else if (action[2] === 1 && direction != DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT;
-    else if (action[0] === 1 && direction != DIRECTIONS.DOWN) direction = DIRECTIONS.UP;
-    else if (action[3] === 1 && direction != DIRECTIONS.UP) direction = DIRECTIONS.DOWN;
-}
-
-function changeDirectionFromAction2(action) {
     const clockWise = [DIRECTIONS.RIGHT, DIRECTIONS.DOWN, DIRECTIONS.LEFT, DIRECTIONS.UP];
     const idx = clockWise.indexOf(this.direction);
 
@@ -218,19 +216,5 @@ function changeDirectionFromAction2(action) {
         newDir = clockWise[nextIdx]; // left turn r -> u -> l -> d
     }
 
-    this.direction = newDir;
-
-    let x = this.head.x;
-    let y = this.head.y;
-    if (this.direction === Direction.RIGHT) {
-        x += BLOCK_SIZE;
-    } else if (this.direction === Direction.LEFT) {
-        x -= BLOCK_SIZE;
-    } else if (this.direction === Direction.DOWN) {
-        y += BLOCK_SIZE;
-    } else if (this.direction === Direction.UP) {
-        y -= BLOCK_SIZE;
-    }
-
-    this.head = new Point(x, y);
+    direction = newDir;
 }
