@@ -84,6 +84,7 @@ function initializeGame() {
 
     if (typeof setIntervalRef != "undefined") clearInterval(setIntervalRef);
     setIntervalRef = setInterval(()=>{
+        // paint();
         stepFrame(agent, game, stats);
     }, 60);
 }
@@ -104,6 +105,7 @@ function createFood() {
 }
 
 function paint() {
+    reward = 1
     clearCanvas();
     updateSnakePosition();
     checkFoodCollision();
@@ -199,4 +201,36 @@ function changeDirectionFromAction(action) {
     else if (action[2] === 1 && direction != DIRECTIONS.LEFT) direction = DIRECTIONS.RIGHT;
     else if (action[0] === 1 && direction != DIRECTIONS.DOWN) direction = DIRECTIONS.UP;
     else if (action[3] === 1 && direction != DIRECTIONS.UP) direction = DIRECTIONS.DOWN;
+}
+
+function changeDirectionFromAction2(action) {
+    const clockWise = [DIRECTIONS.RIGHT, DIRECTIONS.DOWN, DIRECTIONS.LEFT, DIRECTIONS.UP];
+    const idx = clockWise.indexOf(this.direction);
+
+    let newDir;
+    if (JSON.stringify(action) === JSON.stringify([1, 0, 0])) {
+        newDir = clockWise[idx]; // no change
+    } else if (JSON.stringify(action) === JSON.stringify([0, 1, 0])) {
+        const nextIdx = (idx + 1) % 4;
+        newDir = clockWise[nextIdx]; // right turn r -> d -> l -> u
+    } else { // [0, 0, 1]
+        const nextIdx = (idx - 1) % 4;
+        newDir = clockWise[nextIdx]; // left turn r -> u -> l -> d
+    }
+
+    this.direction = newDir;
+
+    let x = this.head.x;
+    let y = this.head.y;
+    if (this.direction === Direction.RIGHT) {
+        x += BLOCK_SIZE;
+    } else if (this.direction === Direction.LEFT) {
+        x -= BLOCK_SIZE;
+    } else if (this.direction === Direction.DOWN) {
+        y += BLOCK_SIZE;
+    } else if (this.direction === Direction.UP) {
+        y -= BLOCK_SIZE;
+    }
+
+    this.head = new Point(x, y);
 }

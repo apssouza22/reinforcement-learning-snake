@@ -1,9 +1,9 @@
 const BATCH_SIZE = 1000;
 const DIRECTIONS = {
-    LEFT: 'left',
-    RIGHT: 'right',
-    UP: 'up',
-    DOWN: 'down'
+    RIGHT: 1,
+    LEFT: 2,
+    UP: 3,
+    DOWN: 4
 };
 
 class Agent {
@@ -11,7 +11,7 @@ class Agent {
         this.n_games = 0
         this.epsilon = 0 // randomness
         this.gamma = 0.9 // discount rate
-        this.memory = new Memory(500)
+        this.memory = new Memory(100_000)
         this.model = new TrainableNeuralNetwork([11, 256, 3], Activation.ReLU)
         this.trainer = new QTrainer(this.model, 0.001, this.gamma)
         this.loadModuleWeights()
@@ -109,47 +109,11 @@ class Agent {
     loadModuleWeights() {
         if (localStorage.getItem('brain')) {
             console.log('Loading brain')
-            this.model.loadWeights(JSON.parse(localStorage.getItem("brain")))
+            // this.model.loadWeights(JSON.parse(localStorage.getItem("brain")))
         }
     }
 }
 
-class Memory {
-    /**
-     * @param {number} maxMemory
-     */
-    constructor(maxMemory) {
-        this.maxMemory = maxMemory;
-        this.samples = new Array();
-    }
-
-    /**
-     * @param {Object} sample
-     */
-    addSample(sample) {
-        this.samples.push(sample);
-        if (this.samples.length > this.maxMemory) {
-            this.samples.shift();
-        }
-    }
-
-    /**
-     * @param {number} nSamples
-     * @returns {Array} Randomly selected samples
-     */
-    sample(nSamples) {
-        return this.#sampleSize(this.samples, nSamples);
-    }
-
-    #sampleSize([...arr], n = 1) {
-        let m = arr.length;
-        while (m) {
-            const i = Math.floor(Math.random() * m--);
-            [arr[m], arr[i]] = [arr[i], arr[m]];
-        }
-        return arr.slice(0, n);
-    }
-}
 
 class QTrainer {
     totalLoss = 0
@@ -163,8 +127,12 @@ class QTrainer {
 
     /**
      * @param {Array} samples
+     * @param long
      */
     train(samples, long = false) {
+        if (long) {
+            console.log('Training long memory')
+        }
         for (const sample of samples) {
             this.totalTrain++
             const pred = this.model.predict(sample.state)
