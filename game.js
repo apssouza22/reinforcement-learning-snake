@@ -111,7 +111,7 @@ function createFood() {
 }
 
 function paint() {
-    reward = 1
+    reward = 0
     clearCanvas();
     updateSnakePosition();
     checkFoodCollision();

@@ -1,64 +1,42 @@
+// This file contain our vanilla javascript code for the neural network
 /**
  * Artificial Neural Network
  */
 class NeuralNetwork {
 
     /**
-     * @param  {Array} layerNodesCounts - array of counts of neurons in each layer
-     * Eg : new NeuralNet([3,4,2]); will instantiate NN with 3 neurons as input layer, 4 as hidden and 2 as output layer
+     * @param  {Layer[]} layers - network layers
      */
-    constructor(layerNodesCounts,activation = Activation.SIGMOID) {
-        this.layerNodesCounts = layerNodesCounts; // no of neurons per layer
-        this.#setActivation(activation);
-        this.#createLayers(layerNodesCounts);
+    constructor(layers) {
+        this.layerNodesCounts = []; // no of neurons per layer
+        this.layers = layers;
+        this.#setLayerNodeCounts(layers);
     }
 
-    /**
-     * Load the pre-trained weights from a JSON object
-     * @param {NeuralNetwork} dict
-     * @returns {NeuralNetwork}
-     */
-    loadWeights(dict) {
-        for (const i in this.layers) {
-            this.layers[i].loadWeights(dict.layers[i])
-        }
-    }
-    /**
-     * Return the trained weights in a JSON object
-     * @returns {Object}
-     */
-    getWeights() {
-        const layers = []
-        for (const layersKey in this.layers) {
-            layers.push(this.layers[layersKey].getWeights())
-        }
-        return {
-            layerNodesCounts: this.layerNodesCounts,
-            layers: layers,
+    #setLayerNodeCounts(layers) {
+        for (const layer of layers) {
+            if (layer.layerType == Layer.INPUT) {
+                continue;
+            }
+            this.layerNodesCounts.push(layer.weights.cols);
+            if (layer.layerType == Layer.OUTPUT) {
+                this.layerNodesCounts.push(layer.weights.rows);
+            }
         }
     }
 
     /**
-     * Save the model weights to local storage
-     * @param {String} key - the local storage key to save the model weights to
-     */
-    save(key = "brain") {
-        console.log("Saving brain to local storage");
-        localStorage.setItem(key, JSON.stringify(this.getWeights()));
-    }
-
-    /**
-     * Perform the feed foward operation
-     * @param {Array} input_array - Array of input values
+     * Perform the feed forward operation
+     * @param {number[]} input_array - Array of input values
      * @param {Boolean} GET_ALL_LAYERS - if we need all layers after feed forward instead of just output layer
-     * @returns {Array} - the Neural net output for each layer
+     * @returns {number[]} - the Neural net output for each layer
      */
-    feedForward(input_array, GET_ALL_LAYERS=false) {
+    feedForward(input_array, GET_ALL_LAYERS = false) {
         this.#feedforwardArgsValidator(input_array)
         let inputMat = Matrix.fromArray(input_array)
         let outputs = [];
         for (let i = 0; i < this.layerNodesCounts.length; i++) {
-            outputs[i] = this.layers[i].feedForward(inputMat);
+            outputs[i] = this.layers[i].processFeedForward(inputMat);
             inputMat = outputs[i];
         }
 
@@ -69,54 +47,10 @@ class NeuralNetwork {
     }
 
 
-    #createLayers(layerNodesCounts) {
-        /**
-         * @type Array.<Layer>
-         */
-        this.layers = []
-        this.layers.push(new Layer(
-                layerNodesCounts[0],
-                layerNodesCounts[0],
-                this.activation,
-                Layer.INPUT
-        ))
-
-        for (let i = 0; i < layerNodesCounts.length - 1; i++) {
-            let layerType = Layer.HIDDEN;
-            if (i == layerNodesCounts.length - 2) {
-                layerType = Layer.OUTPUT;
-            }
-            this.layers.push(new Layer(
-                    layerNodesCounts[i],
-                    layerNodesCounts[i + 1],
-                    this.activation,
-                    layerType
-            ))
-        }
-    }
-
     // Argument validator functions
     #feedforwardArgsValidator(input_array) {
-        if (input_array.length != this.layerNodesCounts[0]) {
+        if (input_array.length != this.layers[0].inputs.length) {
             throw new Error("Feedforward failed : Input array and input layer size doesn't match.");
-        }
-    }
-
-
-    #setActivation(TYPE) {
-        switch (TYPE) {
-            case Activation.SIGMOID:
-                this.activation = Activation.sigmoid;
-                this.activation_derivative = Activation.sigmoid_derivative;
-                break;
-            case Activation.ReLU:
-                this.activation = Activation.relu;
-                this.activation_derivative = Activation.relu_derivative;
-                break;
-            default:
-                console.error('Activation type invalid, setting sigmoid by default');
-                this.activation = Activation.sigmoid;
-                this.activation_derivative = Activation.sigmoid_derivative;
         }
     }
 }
@@ -127,36 +61,61 @@ class NeuralNetwork {
 class TrainableNeuralNetwork extends NeuralNetwork {
     learningRate;
 
-    constructor(layerNodesCounts, activation = Activation.SIGMOID, learningRate = 0.1) {
-        super(layerNodesCounts, activation);
-        this.learningRate = learningRate;
-    }
     /**
-     * Trains with back propagation
-     * @param {Array} input - Array of input values
-     * @param {Array} target - Array of labels
+     * Constructor
+     * @param {Layer[]}layers
+     * @param [float]learningRate
      */
-    train(input, target) {
-        this.#trainArgsValidator(input, target)
-        this.feedForward(input, true);
-        this.calculateLoss(target);
-        this.updateWeights()
+    constructor(layers, learningRate = 0.1) {
+        super(layers);
+        this.learningRate = learningRate;
     }
 
     /**
-     * Trains with back propogation
-     * @param {Array} input - Array of input values
+     * Trains with back propagation
+     * @param {int[]} input - Array of input values
+     * @param {int[]} target - Array of labels
+     */
+    fit(input, target) {
+        this.#trainArgsValidator(input, target)
+        this.feedForward(input, true);
+        let loss = this.calculateLoss(target);
+        this.updateWeights();
+        return loss;
+    }
+
+    /**
+     * Evaluate the model with the given test data
+     * @param {int[]} inputs
+     * @param {int[]} targets
+     * @returns {number} average accuracy
+     */
+    evaluate(inputs, targets) {
+        let total = 0
+        for (let i = 0; i < inputs.length; i++) {
+            const output = this.predict(inputs[i]);
+            total += argMax(output) == argMax(targets[i]) ? 1 : 0;
+        }
+        return total / inputs.length;
+    }
+
+    /**
+     * Perform the prediction
+     * @param {int[]} input - Array of input values
      **/
     predict(input) {
         return this.feedForward(input, false);
     }
 
-
+    /**
+     * Calculate the loss for each layer
+     * @param {int[]} target - Array of out values
+     **/
     calculateLoss(target) {
         const targetMatrix = Matrix.fromArray(target)
         this.#loopLayersInReverse(this.layerNodesCounts, (layerIndex) => {
             let prevLayer
-            if(this.layers[layerIndex].layerType != Layer.OUTPUT){
+            if (this.layers[layerIndex].layerType != Layer.OUTPUT) {
                 prevLayer = this.layers[layerIndex + 1]
             }
             this.layers[layerIndex].calculateErrorLoss(targetMatrix, prevLayer);
@@ -164,12 +123,32 @@ class TrainableNeuralNetwork extends NeuralNetwork {
         return this.layers[this.layers.length - 1].layerError;
     }
 
+    /**
+     * Neural network summary
+     */
+    summary() {
+        console.log("Neural Network Summary");
+        console.log("Layers : ", this.layerNodesCounts);
+        console.log("Learning Rate : ", this.learningRate);
+    }
 
+    /**
+     * Save the model weights to local storage
+     * @param {String} key - the local storage key to save the model weights to
+     */
+    save(key = "brain") {
+        // console.log("Saving brain to local storage");
+        // localStorage.setItem(key, JSON.stringify(this.getWeights()));
+    }
+
+    /**
+     * Update the weights of each layer based on the loss calculated
+     */
     updateWeights() {
         this.#loopLayersInReverse(this.layerNodesCounts, (layerIndex) => {
             const currentLayer = this.layers[layerIndex]
             const nextLayer = this.layers[layerIndex - 1]
-            currentLayer.calculateGradient(this.activation_derivative, this.learningRate);
+            currentLayer.calculateGradient(this.learningRate);
             currentLayer.updateWeights(nextLayer.outputs);
         })
     }
@@ -195,33 +174,75 @@ class TrainableNeuralNetwork extends NeuralNetwork {
 /**
  * Available activation functions
  */
-class Activation{
+class Activation {
     static SIGMOID = 1;
     static ReLU = 2;
+    static SOFTMAX = 3;
 
-    // Activation functions
-    static sigmoid(x) {
-        return 1 / (1 + Math.exp(-1 * x));
+    /**
+     * Create a new activation function pair (activation and derivative)
+     * @param {int} activationType
+     * @returns {{
+     *   derivative: ((function(number): (number))),
+     *   activation: ((function(number): (number)))
+     * }}
+     */
+    static create(activationType) {
+        switch (activationType) {
+            case Activation.SIGMOID:
+                return {
+                    activation: Activation.#sigmoid,
+                    derivative: Activation.#sigmoid_derivative
+                }
+
+            case Activation.ReLU:
+                return {
+                    activation: Activation.#relu,
+                    derivative: Activation.#relu_derivative
+                }
+            case Activation.SOFTMAX:
+                return {
+                    activation: Activation.#softmax,
+                    derivative: Activation.#softmax_derivative
+                }
+            default:
+                console.error('Activation type invalid, setting sigmoid by default');
+                return {
+                    activation: Activation.#sigmoid,
+                    derivative: Activation.#sigmoid_derivative
+                }
+        }
     }
 
-    static sigmoid_derivative(y) {
+    static #softmax_derivative(y) {
         return y * (1 - y);
     }
 
-    static relu(x) {
-        if (x >= 0) {
-            return x;
-        } else {
-            return 0;
-        }
+    static #softmax(x) {
+        return 1 / (1 + Math.exp(-x));
     }
 
-    static relu_derivative(y) {
+    static #sigmoid(x) {
+        return 1 / (1 + Math.exp(-1 * x));
+    }
+
+    static #sigmoid_derivative(y) {
+        return y * (1 - y);
+    }
+
+    static #relu(x) {
+        if (x >= 0) {
+            return x;
+        }
+        return 0;
+
+    }
+
+    static #relu_derivative(y) {
         if (y > 0) {
             return 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 }
 
@@ -232,60 +253,59 @@ class Layer {
     static INPUT = 1
     static HIDDEN = 2
     static OUTPUT = 3
+    /**
+     * @type {Matrix}
+     */
     layerError
+    /**
+     * @type {Matrix}
+     */
+    weights
 
+    /**
+     * @type {Matrix}
+     */
+    outputs
+    /**
+     * Constructor
+     * @param {int} inputSize
+     * @param {int}outputSize
+     * @param {number} activation
+     * @param {number} layerType
+     */
     constructor(inputSize, outputSize, activation, layerType) {
         this.layerType = layerType;
-        let weights = new Matrix(outputSize, inputSize);
-        weights.randomize()
-
-        let bias = new Matrix(outputSize, 1);
-        bias.randomize()
-
-        this.activation = activation;
-        this.weights = weights;
-        this.biases = bias;
+        this.activationFun = Activation.create(activation);
+        this.weights = Matrix.randomize(outputSize, inputSize);
+        this.biases = Matrix.randomize(outputSize, 1);
         this.inputs = new Array(inputSize);
-        this.outputs = new Array(outputSize);
-
-    }
-
-    loadWeights(trainedLayer) {
-        this.weights.data = trainedLayer.weights
-        this.biases.data = trainedLayer.biases;
-        this.outputs.data = trainedLayer.outputs;
-        this.inputs = trainedLayer.inputs;
-    }
-
-    getWeights() {
-        return {
-            weights: this.weights.data,
-            biases: this.biases.data,
-            outputs: this.outputs.data,
-            inputs: this.inputs,
-            layerType: this.layerType,
-        }
     }
 
     /**
      * Feed forward the input matrix to the layer
-     * @param {Array} input_array - Array of input values
-     * @param {Boolean} GET_ALL_LAYERS - if we need all layers after feed forward instead of just output layer
+     * @param {Matrix} input - Array of input values
+     * @returns {Matrix} - Array of output values
      */
-    feedForward(input) {
+    processFeedForward(input) {
         if (this.layerType == Layer.INPUT) {
             this.inputs = input.data;
             this.outputs = input;
             return input;
         }
         this.inputs = input.data
-        input = Matrix.multiply(this.weights, input);
-        input.add(this.biases);
-        input.map(this.activation);
-        this.outputs = input
-        return input
+        let output = Matrix.multiply(this.weights, input);
+        output.add(this.biases);
+        output.map(this.activationFun.activation);
+        this.outputs = output
+        return output
     }
 
+    /**
+     * Calculate the loss for the layer using the MSE loss function
+     * @param target_matrix
+     * @param prevLayer
+     * @return {*}
+     */
     calculateErrorLoss(target_matrix, prevLayer) {
         if (this.layerType == Layer.OUTPUT) {
             this.layerError = Matrix.add(target_matrix, Matrix.multiply(this.outputs, -1));
@@ -296,6 +316,9 @@ class Layer {
         return this.layerError;
     }
 
+    /**
+     * Update the weights of the layer
+     */
     updateWeights(nextLayerOutput) {
         //Calculating delta weights
         const nextLayerOutputTransposed = Matrix.transpose(nextLayerOutput);
@@ -307,10 +330,23 @@ class Layer {
     }
 
 
-    calculateGradient(activation_derivative, learningRate) {
-        this.gradient = Matrix.map(this.outputs, activation_derivative);
+    /**
+     * Calculate the gradient of the layer
+     * @param {number}learningRate
+     */
+    calculateGradient(learningRate) {
+        this.gradient = Matrix.map(this.outputs, this.activationFun.derivative);
         this.gradient.multiply(this.layerError);
         this.gradient.multiply(learningRate);
     }
+}
 
+/**
+ * Return the index of the highest value in the array
+ * (e.g. argmax([0.07, 0.1, 0.03, 0.75, 0.05]) == 3)
+ * @param arr
+ * @return {number}
+ */
+function argMax(arr) {
+    return arr.indexOf(Math.max(...arr));
 }
