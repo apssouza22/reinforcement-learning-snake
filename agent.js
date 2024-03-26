@@ -126,7 +126,7 @@ class Agent {
         let outputs = this.model.predict(state)
         console.log(outputs, argMax(outputs))
         steer[argMax(outputs)] = 1
-        if(JSON.stringify(steer) !== JSON.stringify([0, 1, 0])){
+        if (JSON.stringify(steer) !== JSON.stringify([0, 1, 0])) {
             console.log(steer)
         }
 
@@ -140,7 +140,6 @@ class Agent {
         }
     }
 }
-
 
 
 /**
@@ -159,29 +158,31 @@ function argMax(array) {
  * @param stats
  */
 function stepFrame(agent, game, stats) {
-    let stateOld = agent.getState(game)
-    // console.log(stateOld)
-    let action = agent.getAction(stateOld)
-    changeDirectionFromAction(action)
-    let {reward, done, score} = game.playStep()
-    let stateNew = agent.getState(game)
-    // console.log(reward)
-    agent.trainShortMemory(stateOld, action, reward, stateNew, done)
-    agent.remember(stateOld, action, reward, stateNew, done)
+    for (let i = 0; i < 10; i++) {
+        let stateOld = agent.getState(game)
+        // console.log(stateOld)
+        let action = agent.getAction(stateOld)
+        changeDirectionFromAction(action)
+        let {reward, done, score} = game.playStep()
+        let stateNew = agent.getState(game)
+        // console.log(reward)
+        agent.trainShortMemory(stateOld, action, reward, stateNew, done)
+        agent.remember(stateOld, action, reward, stateNew, done)
 
-    if (done) {
-        game.init()
-        agent.n_games += 1
-        agent.trainLongMemory()
+        if (done) {
+            game.init()
+            agent.n_games += 1
+            agent.trainLongMemory()
 
-        if (score > stats.record) {
-            stats.record = score
+            if (score > stats.record) {
+                stats.record = score
+            }
+            agent.model.save()
+
+            console.log('Game', agent.n_games, 'Score', score, 'Record:', stats.record)
+            stats.totalScore += score
+            let mean_score = stats.totalScore / agent.n_games
+            console.log('Mean Score:', mean_score)
         }
-        agent.model.save()
-
-        console.log('Game', agent.n_games, 'Score', score, 'Record:', stats.record)
-        stats.totalScore += score
-        let mean_score = stats.totalScore / agent.n_games
-        console.log('Mean Score:', mean_score)
     }
 }
