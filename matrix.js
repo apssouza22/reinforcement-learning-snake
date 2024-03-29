@@ -5,8 +5,8 @@ class Matrix {
 
     /**
      * Values are initialized to 0
-     * @param {number} Rows
-     * @param {number} Columns
+     * @param {number} rows
+     * @param {number} cols
      */
     constructor(rows, cols) {
         this.rows = rows;
@@ -50,6 +50,7 @@ class Matrix {
             for (let i = 0; i < matrix1.rows; i++) {
                 for (let j = 0; j < matrix1.cols; j++) {
                     newMatrix.data[i][j] *= num;
+                    newMatrix.data[i][j] = Number.isFinite(newMatrix.data[i][j]) ? newMatrix.data[i][j] : Number.MAX_VALUE;
                 }
             }
             return newMatrix;
@@ -62,6 +63,7 @@ class Matrix {
             for (let i = 0; i < matrix1.rows; i++) {
                 for (let j = 0; j < matrix1.cols; j++) {
                     matrix1.data[i][j] *= matrix2.data[i][j];
+                    matrix1.data[i][j] = Number.isFinite(matrix1.data[i][j]) ? matrix1.data[i][j] : Number.MAX_VALUE;
                 }
             }
             return matrix1;
@@ -89,6 +91,7 @@ class Matrix {
                 newMatrix.data[i][j] = 0;
                 for (let k = 0; k < matrix1.cols; k++) {
                     newMatrix.data[i][j] += matrix1.data[i][k] * matrix2.data[k][j];
+                    matrix1.data[i][k] = Number.isFinite(matrix1.data[i][k]) ? matrix1.data[i][k] : Number.MAX_VALUE;
                 }
             }
         }
@@ -161,6 +164,7 @@ class Matrix {
             for (let i = 0; i < m1.rows; i++) {
                 for (let j = 0; j < m1.cols; j++) {
                     newMatrix.data[i][j] = m1.data[i][j] + m2.data[i][j];
+                    newMatrix.data[i][j] = Number.isFinite(newMatrix.data[i][j]) ? newMatrix.data[i][j] : Number.MAX_VALUE;
                 }
             }
             return newMatrix;
@@ -196,6 +200,7 @@ class Matrix {
         for (let i = 0; i < matrix.rows; i++) {
             for (let j = 0; j < matrix.cols; j++) {
                 newMatrix.data[i][j] = func(matrix.data[i][j]);
+                newMatrix.data[i][j] = Number.isFinite(newMatrix.data[i][j]) ? newMatrix.data[i][j] : Number.MAX_VALUE;
             }
         }
         return newMatrix;

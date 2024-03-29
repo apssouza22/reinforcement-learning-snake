@@ -40,7 +40,7 @@ class NeuralNetwork {
             inputMat = outputs[i];
         }
 
-        if (GET_ALL_LAYERS == true) {
+        if (GET_ALL_LAYERS) {
             return outputs;
         }
         return outputs[outputs.length - 1].toArray();
@@ -63,8 +63,8 @@ class TrainableNeuralNetwork extends NeuralNetwork {
 
     /**
      * Constructor
-     * @param {Layer[]}layers
-     * @param [float]learningRate
+     * @param {Layer[]} layers
+     * @param {number} learningRate
      */
     constructor(layers, learningRate = 0.1) {
         super(layers);
@@ -178,6 +178,7 @@ class Activation {
     static SIGMOID = 1;
     static ReLU = 2;
     static SOFTMAX = 3;
+    static NONE = 4;
 
     /**
      * Create a new activation function pair (activation and derivative)
@@ -206,12 +207,14 @@ class Activation {
                     derivative: Activation.#softmax_derivative
                 }
             default:
-                console.error('Activation type invalid, setting sigmoid by default');
                 return {
-                    activation: Activation.#sigmoid,
-                    derivative: Activation.#sigmoid_derivative
+                    activation: Activation.#none,
+                    derivative: Activation.#none
                 }
         }
+    }
+    static #none(x) {
+        return x;
     }
 
     static #softmax_derivative(y) {

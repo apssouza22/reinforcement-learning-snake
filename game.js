@@ -137,7 +137,7 @@ function updateSnakePosition() {
     else if (direction == DIRECTIONS.DOWN) newY++;
 
     if (checkCollision(newX, newY, canvasWidth, CELL_WIDTH, snake, canvasHeight)) {
-        reward = -10
+        reward = -1
         gameOver = true;
         // initializeGame();
         return;

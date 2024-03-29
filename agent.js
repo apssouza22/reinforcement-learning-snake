@@ -12,6 +12,7 @@ class Agent {
         this.epsilon = 0 // randomness
         this.gamma = 0.9 // discount rate
         this.memory = new Memory(100_000)
+        this.learningRate = 0.001
 
         this.model = this.createModel()
         this.trainer = new QTrainer(this.model, 0.001, this.gamma)
@@ -35,10 +36,10 @@ class Agent {
         layers.push(new Layer(
             256,
             3,
-            Activation.SOFTMAX,
+            Activation.NONE,
             Layer.OUTPUT
         ))
-        return new TrainableNeuralNetwork(layers);
+        return new TrainableNeuralNetwork(layers, this.learningRate);
     }
 
 
@@ -115,6 +116,7 @@ class Agent {
         }])
     }
 
+    // [straight, right, left]
     getAction(state) {
         this.epsilon = 100 - this.n_games
         let steer = [0, 0, 0]

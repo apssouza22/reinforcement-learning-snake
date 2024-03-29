@@ -20,23 +20,27 @@ class QTrainer {
         for (const sample of samples) {
             this.totalTrain++
             const pred = this.model.predict(sample.state)
+            if (isNaN(Math.max(...pred))) {
+                console.log('Prediction', pred)
+            }
             let Q_new = sample.reward
             if (!sample.done) {
                 // Bellman equation
-                Q_new = sample.reward + this.gamma * Math.max(...this.model.predict(sample.nextState))
+                let predArgMax = Math.max(...this.model.predict(sample.nextState));
+                if(isNaN(predArgMax)){
+                    console.log('Prediction', predArgMax)
+                }
+                Q_new = sample.reward + this.gamma * predArgMax
             }
             let target = [...pred]
             target[argMax(sample.action)] = Q_new
-            // for (const action in sample.action) {
-            //     if (sample.action[action] > 0) {
-            //         target[action] = Q_new
-            //     }
-            // }
-            // target[argMax(sample.action)] = Q_new
             this.model.feedForward(sample.state, true);
             this.model.calculateLoss(target)
             this.model.updateWeights()
             let loss = mse(pred, target)
+            if (loss === Infinity || loss === -Infinity) {
+                loss = Number.MAX_VALUE;
+            }
             this.totalLoss += loss
         }
         if (long) {
@@ -50,6 +54,9 @@ function mse(a, b) {
     let error = 0
     for (let i = 0; i < a.length; i++) {
         error += Math.pow((b[i] - a[i]), 2)
+    }
+    if (isNaN(error)) {
+        console.log('Error', error)
     }
     return error / a.length
 }
