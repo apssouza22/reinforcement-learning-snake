@@ -20,28 +20,37 @@ class Agent {
     }
 
     createModel() {
-        let layers = []
-        layers.push(new Layer(
-            11,
-            11,
-            Activation.ReLU,
-            Layer.INPUT
-        ))
-        layers.push(new Layer(
-            11,
-            256,
-            Activation.ReLU,
-            Layer.HIDDEN
-        ))
-        layers.push(new Layer(
-            256,
-            3,
-            Activation.NONE,
-            Layer.OUTPUT
-        ))
-        return new TrainableNeuralNetwork(layers, this.learningRate);
+        // Create a TensorFlow.js Sequential model
+        const tfModel = tf.sequential();
+        
+        // Input layer
+        tfModel.add(tf.layers.dense({
+            units: 256,
+            activation: 'relu',
+            inputShape: [11]
+        }));
+        
+        // Hidden layer
+        tfModel.add(tf.layers.dense({
+            units: 256,
+            activation: 'relu'
+        }));
+        
+        // Output layer (3 actions: straight, right, left)
+        tfModel.add(tf.layers.dense({
+            units: 3,
+            activation: 'linear'
+        }));
+        
+        // Compile the model
+        tfModel.compile({
+            optimizer: tf.train.adam(this.learningRate),
+            loss: 'meanSquaredError'
+        });
+        
+        console.log('TensorFlow.js model created');
+        return new TrainableNeuralNetwork(tfModel, this.learningRate);
     }
-
 
     getState(game) {
         /**
@@ -120,29 +129,37 @@ class Agent {
     getAction(state) {
         this.epsilon = 100 - this.n_games
         let steer = [0, 0, 0]
+        
+        // Epsilon-greedy strategy
         if (Math.random() * 200 < this.epsilon) {
             let random = Math.floor(Math.random() * 3)
             steer[random] = 1
             return steer
         }
+        
+        // Use the model to predict the best action
         let outputs = this.model.predict(state)
-        console.log(outputs, argMax(outputs))
+        // console.log(outputs, argMax(outputs))
         steer[argMax(outputs)] = 1
+        
         if (JSON.stringify(steer) !== JSON.stringify([0, 1, 0])) {
-            console.log(steer)
+            console.log("Steared", steer)
         }
 
         return steer
     }
 
-    loadModuleWeights() {
-        if (localStorage.getItem('brain')) {
-            console.log('Loading brain')
-            // this.model.loadWeights(JSON.parse(localStorage.getItem("brain")))
+    async loadModuleWeights() {
+        try {
+            if (localStorage.getItem('brain')) {
+                console.log('Loading brain from localStorage');
+                await this.model.loadWeights();
+            }
+        } catch (error) {
+            console.error('Error loading model:', error);
         }
     }
 }
-
 
 /**
  * Retrieve the array key corresponding to the largest element in the array.
@@ -160,31 +177,32 @@ function argMax(array) {
  * @param stats
  */
 function stepFrame(agent, game, stats) {
-    for (let i = 0; i < 10; i++) {
-        let stateOld = agent.getState(game)
-        // console.log(stateOld)
-        let action = agent.getAction(stateOld)
-        changeDirectionFromAction(action)
-        let {reward, done, score} = game.playStep()
-        let stateNew = agent.getState(game)
-        // console.log(reward)
-        agent.trainShortMemory(stateOld, action, reward, stateNew, done)
-        agent.remember(stateOld, action, reward, stateNew, done)
+    // We use tf.tidy to clean up tensors after each step
+    tf.tidy(() => {
+        for (let i = 0; i < 10; i++) {
+            let stateOld = agent.getState(game)
+            let action = agent.getAction(stateOld)
+            changeDirectionFromAction(action)
+            let {reward, done, score} = game.playStep()
+            let stateNew = agent.getState(game)
+            agent.trainShortMemory(stateOld, action, reward, stateNew, done)
+            agent.remember(stateOld, action, reward, stateNew, done)
 
-        if (done) {
-            game.init()
-            agent.n_games += 1
-            agent.trainLongMemory()
+            if (done) {
+                game.init()
+                agent.n_games += 1
+                agent.trainLongMemory()
 
-            if (score > stats.record) {
-                stats.record = score
+                if (score > stats.record) {
+                    stats.record = score
+                }
+                agent.model.save()
+
+                console.log('Game', agent.n_games, 'Score', score, 'Record:', stats.record)
+                stats.totalScore += score
+                let mean_score = stats.totalScore / agent.n_games
+                console.log('Mean Score:', mean_score)
             }
-            agent.model.save()
-
-            console.log('Game', agent.n_games, 'Score', score, 'Record:', stats.record)
-            stats.totalScore += score
-            let mean_score = stats.totalScore / agent.n_games
-            console.log('Mean Score:', mean_score)
         }
-    }
+    });
 }
