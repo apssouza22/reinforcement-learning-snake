@@ -177,9 +177,10 @@ function argMax(array) {
  * @param stats
  */
 function stepFrame(agent, game, stats) {
-    // We use tf.tidy to clean up tensors after each step
-    tf.tidy(() => {
-        for (let i = 0; i < 10; i++) {
+    // Play 10 frames of the game to speed up training
+    for (let i = 0; i < 1; i++) {
+        // We use tf.tidy to clean up tensors after each step
+        tf.tidy(() => {
             let stateOld = agent.getState(game)
             let action = agent.getAction(stateOld)
             changeDirectionFromAction(action)
@@ -196,13 +197,16 @@ function stepFrame(agent, game, stats) {
                 if (score > stats.record) {
                     stats.record = score
                 }
-                agent.model.save()
 
                 console.log('Game', agent.n_games, 'Score', score, 'Record:', stats.record)
                 stats.totalScore += score
                 let mean_score = stats.totalScore / agent.n_games
                 console.log('Mean Score:', mean_score)
             }
-        }
-    });
+
+            if(game.n_games % 100 === 0) {
+                agent.model.save('brain')
+            }
+        });
+    }
 }

@@ -24,14 +24,10 @@ class QTrainer {
             
             // Use tf.tidy to automatically dispose tensors
             tf.tidy(() => {
-                // Create tensor from state
                 const stateTensor = tf.tensor2d([sample.state]);
-                
-                // Get prediction
                 const pred = this.model.model.predict(stateTensor);
                 const predArray = pred.dataSync();
                 
-                // Calculate Q_new (target Q value)
                 let Q_new = sample.reward;
                 
                 if (!sample.done) {
@@ -79,15 +75,4 @@ class QTrainer {
             console.log(`Mean loss: ${meanLoss}`);
         }
     }
-}
-
-function mse(a, b) {
-    let error = 0
-    for (let i = 0; i < a.length; i++) {
-        error += Math.pow((b[i] - a[i]), 2)
-    }
-    if (isNaN(error)) {
-        console.log('Error', error)
-    }
-    return error / a.length
 }
