@@ -25,7 +25,7 @@ class EpsilonGreedyPolicy {
 
     /**
      * @param {number[]} state
-     * @param {QNetwork} network
+     * @param {NeuralNetwork} network
      * @param {number} gamesPlayed
      * @returns {number} one of {@link Action}
      */

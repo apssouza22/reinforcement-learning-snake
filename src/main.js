@@ -1,9 +1,9 @@
 /**
  * Composition root: wires every collaborator together and starts training.
  */
-(async function main() {
+(function main() {
     const CELL_SIZE = 10;
-    const MODEL_KEY = 'brain';
+    const LAYER_SIZES = [StateEncoder.SIZE, 256, Action.COUNT];
     const LEARNING_RATE = 0.001;
     const GAMMA = 0.9;
 
@@ -11,19 +11,8 @@
     const board = new Board(canvas.width / CELL_SIZE, canvas.height / CELL_SIZE);
     const game = new SnakeGame(board);
 
-    const network = QNetwork.create({
-        inputSize: StateEncoder.SIZE,
-        outputSize: Action.COUNT,
-        hiddenUnits: [256, 256],
-        learningRate: LEARNING_RATE
-    });
-    try {
-        if (await network.load(MODEL_KEY)) {
-            console.log('Loaded brain from localStorage');
-        }
-    } catch (error) {
-        console.error('Error loading model:', error);
-    }
+    const modelStore = new ModelStore('brain');
+    const network = loadSavedNetwork(modelStore) ?? NeuralNetwork.create(LAYER_SIZES, LEARNING_RATE);
 
     const agent = new Agent({
         network,
@@ -40,6 +29,22 @@
         agent,
         encoder: new StateEncoder(),
         renderer: new CanvasRenderer(canvas, CELL_SIZE),
-        modelKey: MODEL_KEY
+        modelStore
     }).start(60);
+
+    /**
+     * @returns {NeuralNetwork|null} the saved network, if it exists and fits this game
+     */
+    function loadSavedNetwork(store) {
+        try {
+            const saved = store.load();
+            if (saved && saved.inputSize === LAYER_SIZES[0] && saved.outputSize === Action.COUNT) {
+                console.log('Loaded brain from localStorage');
+                return saved;
+            }
+        } catch (error) {
+            console.error('Error loading model:', error);
+        }
+        return null;
+    }
 })();

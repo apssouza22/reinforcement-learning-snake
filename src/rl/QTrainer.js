@@ -7,7 +7,7 @@ class QTrainer {
     #trainedSamples = 0;
 
     /**
-     * @param {QNetwork} network
+     * @param {NeuralNetwork} network
      * @param {number} gamma discount rate
      */
     constructor(network, gamma) {
@@ -20,36 +20,34 @@ class QTrainer {
     }
 
     /**
-     * Trains on a whole batch with a single gradient step.
+     * Performs one gradient step per experience.
      * @param {Experience[]} experiences
      */
     train(experiences) {
-        if (experiences.length === 0) return;
+        for (const experience of experiences) {
+            const qValues = this.network.predict(experience.state);
 
-        const states = experiences.map(e => e.state);
-        const predictions = this.network.predictBatch(states);
-        const nextPredictions = this.network.predictBatch(experiences.map(e => e.nextState));
+            // Only the output of the action taken is moved towards the Bellman target;
+            // the other outputs keep their current value, so they produce no error.
+            const target = [...qValues];
+            target[experience.action] = this.#bellmanTarget(experience);
 
-        const targets = experiences.map((experience, i) => {
-            const target = [...predictions[i]];
-            target[experience.action] = this.#bellmanTarget(experience, nextPredictions[i]);
-            return target;
-        });
-
-        const loss = this.network.fit(states, targets);
-        if (isFinite(loss)) {
-            this.#totalLoss += loss * experiences.length;
+            const loss = this.network.train(experience.state, target);
+            if (isFinite(loss)) {
+                this.#totalLoss += loss;
+            }
+            this.#trainedSamples++;
         }
-        this.#trainedSamples += experiences.length;
     }
 
     /**
-     * Q_new = r + gamma * max(Q(next)); only the action taken is updated.
+     * Q_new = r + gamma * max(Q(next state))
      */
-    #bellmanTarget(experience, nextQValues) {
+    #bellmanTarget(experience) {
         if (experience.done) {
             return experience.reward;
         }
+        const nextQValues = this.network.predict(experience.nextState);
         return experience.reward + this.gamma * Math.max(...nextQValues);
     }
 }

@@ -9,21 +9,21 @@ class TrainingSession {
      * @param {StateEncoder} deps.encoder
      * @param {CanvasRenderer} deps.renderer
      * @param {TrainingStats} deps.stats
-     * @param {string} deps.modelKey localStorage key where the model is saved
+     * @param {ModelStore} deps.modelStore where the network is periodically saved
      * @param {number} deps.saveEvery save the model every N games
      * @param {number} deps.maxFramesPerLength a game is aborted after
      *        `maxFramesPerLength * snake length` steps (avoids endless loops)
      */
     constructor({
         game, agent, encoder, renderer, stats = new TrainingStats(),
-        modelKey = 'brain', saveEvery = 100, maxFramesPerLength = 100
+        modelStore, saveEvery = 100, maxFramesPerLength = 100
     }) {
         this.game = game;
         this.agent = agent;
         this.encoder = encoder;
         this.renderer = renderer;
         this.stats = stats;
-        this.modelKey = modelKey;
+        this.modelStore = modelStore;
         this.saveEvery = saveEvery;
         this.maxFramesPerLength = maxFramesPerLength;
         this.framesInGame = 0;
@@ -78,8 +78,8 @@ class TrainingSession {
         console.log(`Game ${stats.games} Score ${score} Record ${stats.record} ` +
             `Mean score ${stats.meanScore.toFixed(2)} Mean loss ${agent.trainer.meanLoss.toFixed(4)}`);
 
-        if (stats.games % this.saveEvery === 0) {
-            agent.network.save(this.modelKey).catch(error => console.error('Error saving model:', error));
+        if (this.modelStore && stats.games % this.saveEvery === 0) {
+            this.modelStore.save(agent.network);
         }
     }
 }

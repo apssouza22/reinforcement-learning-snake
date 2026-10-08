@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Snake game</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 </head>
 <body>
 <canvas id="canvas" width="150" height="150"></canvas>
+
+<!-- Neural network, built from scratch -->
+<script src="src/nn/Matrix.js"></script>
+<script src="src/nn/Activation.js"></script>
+<script src="src/nn/DenseLayer.js"></script>
+<script src="src/nn/NeuralNetwork.js"></script>
+<script src="src/nn/ModelStore.js"></script>
 
 <!-- Game -->
 <script src="src/game/Point.js"></script>
@@ -21,7 +27,6 @@
 <script src="src/rl/Experience.js"></script>
 <script src="src/rl/ReplayMemory.js"></script>
 <script src="src/rl/StateEncoder.js"></script>
-<script src="src/rl/QNetwork.js"></script>
 <script src="src/rl/QTrainer.js"></script>
 <script src="src/rl/EpsilonGreedyPolicy.js"></script>
 <script src="src/rl/Agent.js"></script>

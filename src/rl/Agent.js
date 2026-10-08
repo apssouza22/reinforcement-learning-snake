@@ -5,7 +5,7 @@
 class Agent {
     /**
      * @param {Object} deps
-     * @param {QNetwork} deps.network
+     * @param {NeuralNetwork} deps.network
      * @param {QTrainer} deps.trainer
      * @param {ReplayMemory} deps.memory
      * @param {EpsilonGreedyPolicy} deps.policy
