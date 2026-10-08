@@ -28,7 +28,9 @@ let game = {
     score: score,
     snake: snake,
     food: food,
-    direction: DIRECTIONS.RIGHT,
+    get direction() {
+        return direction;
+    },
     canvasWidth: canvas.width,
     canvasHeight: canvas.height,
     is_collision: function (point) {
@@ -83,7 +85,6 @@ function initializeGame() {
     createFood();
     score = 0;
     gameOver = false;
-    game.direction = direction;
     game.score = score;
     game.snake = snake;
     game.food = food;
@@ -96,18 +97,20 @@ function initializeGame() {
 }
 
 function createSnake() {
-    let length = 5;
+    let length = 3;
     snake = [];
     for (let i = length - 1; i >= 0; i--) {
-        snake.push({x: i + 20, y: 20});
+        snake.push({x: i + 8, y: 8});
     }
 }
 
 function createFood() {
-    food = {
-        x: Math.round(Math.random() * (canvasWidth - CELL_WIDTH) / CELL_WIDTH),
-        y: Math.round(Math.random() * (canvasHeight - CELL_WIDTH) / CELL_WIDTH),
-    };
+    do {
+        food = {
+            x: Math.floor(Math.random() * canvasWidth / CELL_WIDTH),
+            y: Math.floor(Math.random() * canvasHeight / CELL_WIDTH),
+        };
+    } while (checkItselfCollision(food.x, food.y, snake));
 }
 
 function paint() {
@@ -137,7 +140,7 @@ function updateSnakePosition() {
     else if (direction == DIRECTIONS.DOWN) newY++;
 
     if (checkCollision(newX, newY, canvasWidth, CELL_WIDTH, snake, canvasHeight)) {
-        reward = -1
+        reward = -10
         gameOver = true;
         // initializeGame();
         return;
@@ -203,7 +206,7 @@ function changeDirection(e) {
 
 function changeDirectionFromAction(action) {
     const clockWise = [DIRECTIONS.RIGHT, DIRECTIONS.DOWN, DIRECTIONS.LEFT, DIRECTIONS.UP];
-    const idx = clockWise.indexOf(this.direction);
+    const idx = clockWise.indexOf(direction);
 
     let newDir;
     if (JSON.stringify(action) === JSON.stringify([1, 0, 0])) {
@@ -212,7 +215,7 @@ function changeDirectionFromAction(action) {
         const nextIdx = (idx + 1) % 4;
         newDir = clockWise[nextIdx]; // right turn r -> d -> l -> u
     } else { // [0, 0, 1]
-        const nextIdx = (idx - 1) % 4;
+        const nextIdx = (idx + 3) % 4;
         newDir = clockWise[nextIdx]; // left turn r -> u -> l -> d
     }
 

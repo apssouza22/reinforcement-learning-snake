@@ -6,73 +6,51 @@ class QTrainer {
         this.model = model
         this.lr = lr
         this.gamma = gamma
-        // Setup optimizer for TensorFlow
         this.optimizer = tf.train.adam(this.lr);
     }
 
     /**
+     * Trains on a whole batch of samples with a single gradient step.
      * @param {Array} samples
      * @param long
      */
     train(samples, long = false) {
-        if (long) {
-            console.log('Training long memory')
-        }
-        
-        for (const sample of samples) {
-            this.totalTrain++
-            
-            // Use tf.tidy to automatically dispose tensors
-            tf.tidy(() => {
-                const stateTensor = tf.tensor2d([sample.state]);
-                const pred = this.model.model.predict(stateTensor);
-                const predArray = pred.dataSync();
-                
-                let Q_new = sample.reward;
-                
+        if (!samples.length) return;
+
+        const loss = tf.tidy(() => {
+            const net = this.model.model;
+            const states = tf.tensor2d(samples.map(s => s.state));
+            const nextStates = tf.tensor2d(samples.map(s => s.nextState));
+
+            const preds = net.predict(states).arraySync();
+            const nextPreds = net.predict(nextStates).arraySync();
+
+            // Bellman target: Q_new = r + gamma * max(Q(next)) (only the taken action changes)
+            const targets = samples.map((sample, i) => {
+                let qNew = sample.reward;
                 if (!sample.done) {
-                    // Use Bellman equation for Q-learning
-                    const nextStateTensor = tf.tensor2d([sample.nextState]);
-                    const nextPred = this.model.model.predict(nextStateTensor);
-                    const nextPredArray = nextPred.dataSync();
-                    const predArgMax = Math.max(...nextPredArray);
-                    
-                    if(isNaN(predArgMax)){
-                        console.log('Prediction', predArgMax)
-                    }
-                    
-                    Q_new = sample.reward + this.gamma * predArgMax;
+                    qNew += this.gamma * Math.max(...nextPreds[i]);
                 }
-                
-                // Create target array
-                let target = [...predArray];
-                const actionIdx = argMax(sample.action);
-                target[actionIdx] = Q_new;
-                
-                // Create target tensor
-                const targetTensor = tf.tensor2d([target]);
-                
-                // Train the model
-                this.optimizer.minimize(() => {
-                    const predictions = this.model.model.predict(stateTensor);
-                    const loss = tf.losses.meanSquaredError(targetTensor, predictions);
-                    
-                    // Add loss to total
-                    const lossValue = loss.dataSync()[0];
-                    if (isFinite(lossValue)) {
-                        this.totalLoss += lossValue;
-                    } else {
-                        this.totalLoss += Number.MAX_VALUE;
-                    }
-                    
-                    return loss;
-                });
+                const target = [...preds[i]];
+                target[argMax(sample.action)] = qNew;
+                return target;
             });
+            const targetTensor = tf.tensor2d(targets);
+
+            const cost = this.optimizer.minimize(
+                () => tf.losses.meanSquaredError(targetTensor, net.predict(states)),
+                true
+            );
+            return cost.dataSync()[0];
+        });
+
+        if (isFinite(loss)) {
+            this.totalLoss += loss * samples.length;
         }
-        
+        this.totalTrain += samples.length;
+
         if (long) {
-            let meanLoss = this.totalLoss / this.totalTrain;
-            console.log(`Mean loss: ${meanLoss}`);
+            console.log(`Mean loss: ${this.totalLoss / this.totalTrain}`);
         }
     }
 }

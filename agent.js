@@ -9,6 +9,7 @@ const DIRECTIONS = {
 class Agent {
     constructor() {
         this.n_games = 0
+        this.frameIteration = 0
         this.epsilon = 0 // randomness
         this.gamma = 0.9 // discount rate
         this.memory = new Memory(100_000)
@@ -57,10 +58,11 @@ class Agent {
          * @type {{x, y}}
          */
         let head = game.snake[0]
-        let point_l = {x: head.x - CELL_WIDTH, y: head.y}
-        let point_r = {x: head.x + CELL_WIDTH, y: head.y}
-        let point_u = {x: head.x, y: head.y - CELL_WIDTH}
-        let point_d = {x: head.x, y: head.y + CELL_WIDTH}
+        // Snake coordinates are in grid cells, not pixels
+        let point_l = {x: head.x - 1, y: head.y}
+        let point_r = {x: head.x + 1, y: head.y}
+        let point_u = {x: head.x, y: head.y - 1}
+        let point_d = {x: head.x, y: head.y + 1}
 
         let dir_l = game.direction == DIRECTIONS.LEFT
         let dir_r = game.direction == DIRECTIONS.RIGHT
@@ -141,10 +143,6 @@ class Agent {
         let outputs = this.model.predict(state)
         // console.log(outputs, argMax(outputs))
         steer[argMax(outputs)] = 1
-        
-        if (JSON.stringify(steer) !== JSON.stringify([0, 1, 0])) {
-            console.log("Steared", steer)
-        }
 
         return steer
     }
@@ -185,12 +183,19 @@ function stepFrame(agent, game, stats) {
             let action = agent.getAction(stateOld)
             changeDirectionFromAction(action)
             let {reward, done, score} = game.playStep()
+            agent.frameIteration++
+            // Kill games where the snake wanders without eating (avoids endless loops)
+            if (!done && agent.frameIteration > 100 * game.snake.length) {
+                done = true
+                reward = -10
+            }
             let stateNew = agent.getState(game)
             agent.trainShortMemory(stateOld, action, reward, stateNew, done)
             agent.remember(stateOld, action, reward, stateNew, done)
 
             if (done) {
                 game.init()
+                agent.frameIteration = 0
                 agent.n_games += 1
                 agent.trainLongMemory()
 
@@ -204,7 +209,7 @@ function stepFrame(agent, game, stats) {
                 console.log('Mean Score:', mean_score)
             }
 
-            if(game.n_games % 100 === 0) {
+            if (done && agent.n_games % 100 === 0) {
                 agent.model.save('brain')
             }
         });
